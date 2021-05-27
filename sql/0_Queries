@@ -1,0 +1,64 @@
+
+--Raw tables 
+	
+select count(*) from bde_at2.g1_raw
+select * from bde_at2.g1_raw limit 20
+	
+select count(*) from bde_at2.g2_raw
+select * from bde_at2.g2_raw limit 20
+
+select count(*) from bde_at2.lga_raw
+select * from bde_at2.lga_raw limit 20
+	
+select count(*) from bde_at2.airbnb_raw
+select * from bde_at2.airbnb_raw limit 20	
+	
+--drop constraints
+ALTER TABLE bde_at2.air_bnb_fact DROP CONSTRAINT fk_ho
+
+
+select count(*) from bde_at2.air_bnb_fact
+select * from bde_at2.air_bnb_fact limit 20
+
+select count(*) from bde_at2.abs_fact
+select count(*) from bde_at2.dim_lga
+
+
+select count(*) from bde_at2.dim_host
+select count(*) from bde_at2.dim_property
+select count(*) from bde_at2.dim_time
+
+
+select * from bde_at2.dim_host limit 10
+select * from bde_at2.dim_property limit 10
+select * from bde_at2.dim_time
+
+
+
+select *  from bde_at2.dim_host limit 20
+select * from bde_at2.air_bnb_fact limit 20
+
+
+drop table bde_at2.airbnb_raw CASCADE;
+
+drop table bde_at2.g1_raw CASCADE;
+drop table bde_at2.g2_raw CASCADE;
+drop table bde_at2.lga_raw CASCADE;
+drop table bde_at2.dim_lga CASCADE;
+
+
+drop table bde_at2.dim_host CASCADE;
+drop table bde_at2.dim_property CASCADE;
+drop table bde_at2.dim_time CASCADE;
+drop table bde_at2.air_bnb_fact CASCADE;
+
+drop table bde_at2.abs_fact CASCADE;
+
+select * from bde_at2.dim_property limit 10
+
+
+select * from bde_at2.g1_raw limit 20
+select * from bde_at2.g2_raw limit 20
+
+select count(*) from bde_at2.g1_raw limit 20
+select count(*) from bde_at2.g2_raw limit 20

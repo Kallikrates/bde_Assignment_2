@@ -1,0 +1,34 @@
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+	at2_datamart.Question_2_3_distinct_hosts AS
+
+SELECT
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month,
+	COUNT(DISTINCT host_id) as distinct_host_count
+FROM	
+	bde_at2.dim_host h
+
+INNER JOIN 
+	bde_at2.air_bnb_fact f 
+   	ON f.h_id = h.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+GROUP BY
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month
+ORDER BY
+   	t.year_month asc,
+	p.property_type,
+	p.room_type,
+	f.accommodates
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_2_3_distinct_hosts
+;

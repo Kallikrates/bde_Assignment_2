@@ -1,0 +1,36 @@
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+    at2_datamart.Question_2_5_active_listing_avg_review_score_rating AS
+
+SELECT
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month,
+	ROUND(avg(f.review_scores_rating),2) as average_review_scores_rating
+FROM	
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_host h 
+   	ON h.h_id = f.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+WHERE
+	p.has_availability = 't' and 	-- active listings
+	review_scores_rating != 'NaN' 	-- not including NaN values, which will not allow an aggregate to be calculated
+GROUP BY
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month
+ORDER BY
+	year_month asc,
+	p.property_type,
+	p.room_type,
+	f.accommodates
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_2_5_active_listing_avg_review_score_rating
+;

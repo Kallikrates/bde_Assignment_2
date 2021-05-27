@@ -1,0 +1,174 @@
+-- Definition of view q4_a_1_revenue_lga_G1 to support Part 4 Q1a.
+
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_a_1_revenue_lga_G1 AS
+
+-- First CTE introduces calculation elements i.e.number_of_stays and price, and joins necessary tables.
+	
+WITH cte1 AS
+    (
+SELECT 
+	l.lga_name,
+	code_2016,
+	30 - f.availability_30 number_of_stays,
+	f.price
+FROM 
+	bde_at2.dim_host h
+INNER JOIN 
+	bde_at2.lga_raw l
+	ON l.neighbourhood_cleansed = h.neighbourhood_cleansed
+INNER JOIN 
+	bde_at2.air_bnb_fact f 
+	ON h.h_id = f.h_id
+),
+
+-- Second cte defines revenue (estimated revenue per active listings) calculation.
+	cte2 AS
+    (
+SELECT 
+	lga_name,
+	code_2016,
+	number_of_stays*price revenue
+FROM 
+	cte1
+),
+
+-- Third cte aggregates and produces estimated_revenue_per_active_listings metric at the required level.
+
+	cte3 AS
+    (
+SELECT
+	lga_name,
+	code_2016,
+	SUM(revenue) estimated_revenue_per_active_listings
+FROM
+	cte2
+GROUP BY
+	1,
+	2
+ORDER BY
+	1
+),
+
+-- Fourth cte includes ABS G1 data and creates total column.
+
+	cte4 AS
+    (
+	
+SELECT
+	 cte3.lga_name,
+	 age_0_4_yr_p _0_4,
+	 age_5_14_yr_p _5_14,
+	 age_15_19_yr_p _15_19,
+	 age_20_24_yr_p _20_24,
+	 age_25_34_yr_p _25_34,
+	 age_35_44_yr_p _35_44,
+	 age_45_54_yr_p _45_54,
+	 age_55_64_yr_p _55_64,
+	 age_65_74_yr_p _65_74,
+	 age_75_84_yr_p _75_84,
+	 age_85ov_p _85_plus,
+	 (age_0_4_yr_p+age_5_14_yr_p+age_15_19_yr_p+age_20_24_yr_p+age_25_34_yr_p+age_35_44_yr_p+age_45_54_yr_p+age_55_64_yr_p+age_65_74_yr_p+age_75_84_yr_p+age_85ov_p) as total,
+	 estimated_revenue_per_active_listings revenue
+FROM 
+	cte3
+INNER JOIN 
+	bde_at2.abs_fact g1
+	ON g1.lga_code_2016 = cte3.code_2016
+ORDER by 
+	1 desc
+),
+
+-- Fifth cte creates a ratio between that age group population and the total population to facilitate age group comparison.
+cte5 AS
+    (
+SELECT
+	 lga_name,
+	 (_0_4/total) as p0_4,
+	 (_5_14/total) as p5_14,
+	 (_15_19/total) as p15_19,
+	 (_20_24/total) as p20_24,
+	 (_25_34/total) as p25_34,
+	 (_35_44/total) as p35_44,
+	 (_45_54/total) as p45_54,
+	 (_55_64/total) as p55_64,
+	 (_65_74/total) as p65_74,
+	 (_75_84/total) as p75_84,
+	 (_85_plus/total) as p85_plus,
+	 revenue
+FROM 
+	cte4
+ORDER BY 
+	13 desc
+)
+
+-- Sixth query aggregates by lga.
+
+SELECT
+    lga_name,
+    AVG(revenue) agg_revenue,
+    AVG(p0_4) p0_4,
+    AVG(p5_14) p5_14,
+    AVG(p15_19) p15_19,
+    AVG(p20_24) p20_24,
+    AVG(p25_34) p25_34,
+    AVG(p35_44) p35_44,
+    AVG(p45_54) p45_54,
+    AVG(p55_64) p55_64,
+    AVG(p65_74) p65_74,
+    AVG(p75_84) p75_84,
+    AVG(p85_plus) p85_plus 
+FROM 
+	cte5
+GROUP BY 
+	lga_name
+ORDER BY 
+	2 desc
+;
+--- end of q4_a_1_revenue_lga_G1 view definition ---
+
+
+-- Below query shows result from q4_a_1_revenue_lga_G1
+
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_a_2_revenue_lga_G1 AS
+
+SELECT
+	*
+FROM 
+	at2_datamart.q4_a_1_revenue_lga_G1
+;
+
+-- Below query shows average proportion per age bracket. This is to show which brackets are weighted down/up.
+
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_a_3_population_bracket_proportion AS
+
+SELECT
+	AVG(agg_revenue) avg_revenue,
+    AVG(p0_4) p0_4,
+    AVG(p5_14) p5_14,
+    AVG(p15_19) p15_19,
+    AVG(p20_24) p20_24,
+    AVG(p25_34) p25_34,
+    AVG(p35_44) p35_44,
+    AVG(p45_54) p45_54,
+    AVG(p55_64) p55_64,
+    AVG(p65_74) p65_74,
+    AVG(p75_84) p75_84,
+    AVG(p85_plus) p85_plus 
+FROM 
+	at2_datamart.q4_a_2_revenue_lga_G1
+;
+-- Below query shows overall average.
+	
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_a_4_population_bracket_proportion_average AS
+
+SELECT
+    ROUND(((p0_4 + p5_14 + p15_19 + p20_24 + p25_34 + p35_44 +p45_54+p55_64+p65_74+p75_84+p85_plus) / 11),2) Average
+FROM 
+	at2_datamart.q4_a_2_revenue_lga_G1	
+LIMIT 
+	1
+;

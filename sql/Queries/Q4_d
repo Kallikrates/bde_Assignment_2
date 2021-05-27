@@ -1,0 +1,107 @@
+--- This view lists all hosts that have a single listing ---
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_d_1_hosts_with_one_listing AS
+
+SELECT DISTINCT
+	h.host_id
+FROM 
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_host h ON h.h_id = f.h_id
+GROUP BY 
+	h.host_id
+HAVING 
+	count(id)=1 
+ORDER BY 
+	h.host_id
+;
+--- This view shows all necessary columns to answer question, but does not filter by hosts who only have one listing---
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_d_2_revenue_cover_mortgage AS
+	
+-- Calculate revenue per host
+WITH 
+	cte1 AS
+	(
+SELECT 
+	h.host_id,
+    ((30::numeric - f.availability_30)*f.price) as estimated_revenue
+FROM 
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_host h 
+   	ON h.h_id = f.h_id
+),
+
+-- Join tables to include neighbourhood_cleansed and annualised_median_mortgage_repay
+	cte2 AS
+	(
+SELECT 
+	cte1.host_id,
+	h.neighbourhood_cleansed,
+	l.code_2016,
+	cte1.estimated_revenue,
+	a.median_mortgage_repay_monthly * 12 as annualised_median_mortgage_repay
+FROM 
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_host h ON h.h_id = f.h_id
+INNER JOIN 
+	cte1 ON cte1.host_id = h.host_id
+INNER JOIN 
+	bde_at2.lga_raw l 
+	ON l.neighbourhood_cleansed = h.neighbourhood_cleansed
+INNER JOIN 
+	bde_at2.abs_fact a 
+	ON a.lga_code_2016 = l.code_2016
+GROUP BY 
+	cte1.host_id,
+	h.neighbourhood_cleansed,
+	l.code_2016,
+	cte1.estimated_revenue,
+	annualised_median_mortgage_repay
+)
+
+-- Introduce covered flag: I tried to do this in the same query but it took too long so I had to used 2 ctes and a query.
+SELECT 
+	host_id,
+	neighbourhood_cleansed,
+	code_2016,
+	estimated_revenue,
+	annualised_median_mortgage_repay,
+	(case when estimated_revenue >= annualised_median_mortgage_repay then 1 ELSE 0 END) as covered
+FROM 
+	cte2
+ORDER BY 
+	estimated_revenue desc
+;
+--- This view acts as a filter, joining both previous views, allowing it to only show the onformation for hosts that have only one listing ---
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_d_3_revenue_cover_mortgage_hosts_with_one_listing AS
+	
+SELECT 
+	r.host_id, 
+	neighbourhood_cleansed, 
+	estimated_revenue, 
+	annualised_median_mortgage_repay, 
+	covered
+FROM 
+	at2_datamart.q4_d_2_revenue_cover_mortgage r
+INNER JOIN 
+	at2_datamart.q4_d_1_hosts_with_one_listing h
+	ON h.host_id = r.host_id
+;
+
+--- This view gets a count of covered
+
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_d_4_cover_count AS
+
+SELECT
+	covered,
+	count(covered)
+FROM 
+	at2_datamart.q4_d_3_revenue_cover_mortgage_hosts_with_one_listing
+GROUP BY 
+	covered
+		

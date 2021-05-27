@@ -1,0 +1,86 @@
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_b_1_listing_neighbourhood_revenue_prop_room_accomodates AS
+
+-- First CTE introduces calculation elements i.e.number_of_stays and price. 
+	
+WITH cte1 AS
+    (
+SELECT
+	h.neighbourhood_cleansed,
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	30 - availability_30 number_of_stays,
+	price
+FROM	
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_host h 
+   	ON h.h_id = f.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+GROUP BY
+	h.neighbourhood_cleansed,
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	number_of_stays,
+	price
+)
+
+-- Second query defines revenue (estimated revenue per active listings) calculation.
+
+SELECT
+	neighbourhood_cleansed,
+	property_type,
+	room_type,
+	accommodates,
+	number_of_stays*price revenue	
+FROM
+	cte1
+;	
+--- end of q4_b_1_listing_neighbourhood_revenue_prop_room_accomodates view definition ---
+	
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_b_2_best_listing_type AS
+	
+-- Third query aggregates and produces estimated_revenue_per_active_listings metric.
+
+WITH summary AS (
+SELECT
+	neighbourhood_cleansed,
+	property_type,
+	room_type,
+	accommodates,
+	SUM(revenue) revenue_agg,
+	ROW_NUMBER() OVER(PARTITION BY neighbourhood_cleansed
+						ORDER BY SUM(revenue) DESC) AS rank
+FROM
+	at2_datamart.q4_b_1_listing_neighbourhood_revenue_prop_room_accomodates
+GROUP BY
+	neighbourhood_cleansed,
+	property_type,
+	room_type,
+	accommodates
+ORDER BY
+   	revenue_agg desc,
+   	neighbourhood_cleansed,
+   	property_type,
+	room_type,
+	accommodates
+)
+
+SELECT 
+	*
+FROM 
+	summary
+WHERE 
+ 	rank = 1
+ LIMIT 
+ 	5
+;
+

@@ -1,0 +1,67 @@
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+	at2_datamart.Question_2_9_estimated_revenue_active_listings AS
+
+-- First CTE introduces calculation elements i.e.number_of_stays and price. 
+	
+WITH cte1 AS
+    (
+SELECT
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month,
+	30 - availability_30 number_of_stays,
+	price
+FROM	
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+GROUP BY
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month,
+	number_of_stays,
+	price
+),
+
+-- Second cte defines revenue (estimated revenue per active listings) calculation.
+
+	cte2 AS
+    (
+SELECT
+	property_type,
+	room_type,
+	accommodates,
+	year_month,
+	number_of_stays*price revenue	
+FROM
+	cte1
+)
+
+-- Third query aggregates and produces estimated_revenue_per_active_listings metric at the required level.
+SELECT
+	property_type,
+	room_type,
+	accommodates,
+	year_month,
+	SUM(revenue) estimated_revenue_per_active_listings
+FROM
+	cte2
+GROUP BY
+	property_type,
+	room_type,
+	accommodates,
+	year_month
+ORDER BY
+   	property_type,
+	room_type,
+	accommodates,
+   	year_month asc
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_2_9_estimated_revenue_active_listings
+;

@@ -1,0 +1,34 @@
+-- Notes: Using ordered-set aggregate to calculate median price.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+	at2_datamart.Question_1_2_min_max_med_avg AS
+
+SELECT
+	h.neighbourhood_cleansed,
+	t.year_month,
+	ROUND(min(price),2) as min_price,
+	ROUND(max(price),2) as max_price,
+    ROUND(percentile_disc(0.5) within group (order by price),2) median_price,
+	ROUND(avg(price),2) as average_price
+
+FROM	
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_host h 
+   	ON h.h_id = f.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+GROUP BY
+	h.neighbourhood_cleansed,
+	t.year_month
+ORDER BY
+   	t.year_month asc,
+	h.neighbourhood_cleansed
+;
+
+REFRESH MATERIALIZED VIEW at2_datamart.Question_1_2_min_max_med_avg;
+

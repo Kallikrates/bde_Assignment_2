@@ -1,0 +1,63 @@
+-- Notes: Creating a cte to store inactive listings and then using this to calculate changes in these listings. 
+-- As there are not many inactive listings, a few issues of useability need to be addressed. If this calculation is month by month,
+-- firstly, there will be a problem as numbers cannot be divided by zero. However, when this happens, the change can be made 0,
+-- to reflect no change from 0 to 0. However, as the question asks for a 'Percentage change for inactive listings', this change
+-- trend is captured by filtering to only show records where inactive_listings > 0, assuming all other dates are 0. This is a more
+-- useful view, and thus the one adopted here. Also, as with materialized view Question_2_6_percentage_change_for_active_listings, 
+-- it must be noted that the 'Running_Diff_Per' runs sequentially down the page, an thus when it changes between neighbourhood_cleansed, 
+-- it will still provide a change, which is not relevant for this view. This should be ignored.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+at2_datamart.Question_2_7_percentage_change_for_inactive_listings as
+
+WITH cte AS
+    (
+	SELECT
+		p.property_type,
+		p.room_type,
+		f.accommodates,
+		t.year_month,
+		count(case when p.has_availability = 'f' then 1 ELSE NULL END) as inactive_listings
+	FROM	
+		bde_at2.air_bnb_fact f
+	INNER JOIN 
+		bde_at2.dim_property p 
+		ON p.p_id = f.p_id
+	INNER JOIN 
+		bde_at2.dim_host h 
+		ON h.h_id = f.h_id
+	INNER JOIN 
+		bde_at2.dim_time t 
+		ON t.t_id = f.t_id
+	GROUP BY
+		p.property_type,
+		p.room_type,
+		f.accommodates,
+		t.year_month
+	ORDER BY
+	year_month asc,
+	p.property_type,
+	p.room_type,
+	f.accommodates
+)
+
+SELECT 
+	property_type,
+	room_type,
+	accommodates,
+	year_month,
+	inactive_listings,
+	(CAST(inactive_listings AS numeric)/LAG(SUM(inactive_listings), 1) OVER (ORDER BY property_type,room_type,accommodates,year_month)-1) AS Running_Diff_Per		
+FROM
+    cte
+WHERE inactive_listings <> 0
+GROUP BY
+    1,
+    year_month,
+    inactive_listings,
+    room_type,
+	accommodates
+;
+
+REFRESH MATERIALIZED VIEW at2_datamart.Question_2_7_percentage_change_for_inactive_listings
+;

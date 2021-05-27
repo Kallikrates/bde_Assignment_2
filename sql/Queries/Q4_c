@@ -1,0 +1,31 @@
+CREATE OR REPLACE VIEW 
+	at2_datamart.q4_c_property_lga_host_lga_listings AS
+
+WITH cte AS
+    (
+SELECT
+	h.host_id,
+	count(*) total_listings
+FROM 
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_host h ON h.h_id = f.h_id
+GROUP BY 
+	h.host_id
+)
+
+SELECT DISTINCT
+	cte.host_id,
+	total_listings,
+	h.neighbourhood_cleansed as property_lga,
+	l.lga_name as host_lga,
+	(case when h.neighbourhood_cleansed = l.lga_name then 1 ELSE NULL END) as match
+FROM 
+	cte
+INNER JOIN 
+	bde_at2.dim_host h ON h.host_id = cte.host_id
+INNER JOIN 
+	bde_at2.lga_raw l ON h.neighbourhood_cleansed = l.neighbourhood_cleansed
+ORDER BY 
+	total_listings desc
+;

@@ -1,0 +1,43 @@
+-- Notes: Creating cte query with elements for calculation and then query cte to add calculations themselves for inclusion in the datamart.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+	at2_datamart.Question_2_8_no_of_stays as
+
+WITH cte AS
+    (
+SELECT
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month,
+	30 - availability_30 number_of_stays
+FROM	
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+)
+SELECT
+	property_type,
+	room_type,
+	accommodates,
+	year_month,
+	SUM(number_of_stays) number_of_stays
+FROM
+	cte
+GROUP BY
+	property_type,
+	room_type,
+	accommodates,
+	year_month
+ORDER BY
+   	property_type,
+	room_type,
+	accommodates,
+   	year_month asc
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_2_8_no_of_stays
+;

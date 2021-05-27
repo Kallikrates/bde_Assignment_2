@@ -1,0 +1,55 @@
+-- Notes: Creating temporary named result set using common table expression (CTE) and use elements from here to calculate rate.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+	at2_datamart.Question_2_4_superhost_rate AS
+
+WITH cte AS
+    (
+SELECT
+
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month,
+	COUNT(DISTINCT CASE
+    	WHEN h.host_is_superhost ='t'
+    	THEN h.host_id
+    	ELSE NULL END)
+	AS distinct_super_host_count,
+COUNT(DISTINCT h.host_id) as distinct_host_count
+	
+FROM	
+	bde_at2.air_bnb_fact f
+
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_host h 
+   	ON h.h_id = f.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+GROUP BY
+	p.property_type,
+	p.room_type,
+	f.accommodates,
+	t.year_month
+)
+
+SELECT
+	property_type,
+	room_type,
+	accommodates,
+	year_month,
+	ROUND(CAST(distinct_super_host_count AS numeric)/(distinct_host_count),2) AS superhost_rate	
+FROM
+    cte c
+ORDER BY
+	year_month asc,
+	property_type,
+	room_type,
+	accommodates   
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_2_4_superhost_rate
+;

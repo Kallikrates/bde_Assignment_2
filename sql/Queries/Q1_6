@@ -1,0 +1,48 @@
+-- Notes: Cte to store active listings and then using this to calculate changes in these listings. As, to arrange this
+-- in a single view neighbourhood_cleansed and year_month has been combined, it must be noted that the 'Running_Diff_Per' runs sequentially
+-- down the page, an thus when it changes between neighbourhood_cleansed, it will still provide a change, which is not relevant for 
+-- this view. This should be ignored.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+at2_datamart.Question_1_6_percentage_change_for_active_listings as
+
+WITH cte AS
+    (
+	SELECT
+		h.neighbourhood_cleansed,
+		t.year_month,
+		count(case when p.has_availability = 't' then 1 ELSE NULL END) as active_listings
+	FROM	
+		bde_at2.air_bnb_fact f
+	INNER JOIN 
+		bde_at2.dim_property p 
+		ON p.p_id = f.p_id
+	INNER JOIN 
+		bde_at2.dim_host h 
+		ON h.h_id = f.h_id
+	INNER JOIN 
+		bde_at2.dim_time t 
+		ON t.t_id = f.t_id
+	GROUP BY
+		h.neighbourhood_cleansed,
+		t.year_month
+	ORDER BY
+	year_month asc,
+	neighbourhood_cleansed
+)
+
+SELECT 
+	neighbourhood_cleansed,
+	year_month,
+	active_listings,
+	(CAST(active_listings AS numeric)/LAG(SUM(active_listings), 1) OVER (ORDER BY neighbourhood_cleansed,year_month)-1) AS Running_Diff_Per		
+FROM
+    cte
+
+GROUP BY
+    1,
+    year_month,
+    active_listings
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_1_6_percentage_change_for_active_listings
+;

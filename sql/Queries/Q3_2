@@ -1,0 +1,54 @@
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+	at2_datamart.Question_3_2_estimated_revenue_active_listings AS
+
+WITH 
+	cte1 AS
+    (
+SELECT 
+	l.lga_name host_lga_cleansed,
+	t.year_month,
+	30 - f.availability_30 number_of_stays,
+	f.price
+FROM 
+	bde_at2.dim_host h
+INNER JOIN 
+	bde_at2.lga_raw l
+	ON l.neighbourhood_cleansed = h.neighbourhood_cleansed
+INNER JOIN 
+	bde_at2.air_bnb_fact f 
+	ON h.h_id = f.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+	ON t.t_id = f.t_id
+),
+
+-- Second cte defines revenue (estimated revenue per active listings) calculation.
+	cte2 AS
+    (
+SELECT 
+	host_lga_cleansed,
+	year_month,
+	number_of_stays*price revenue
+FROM 
+	cte1
+ORDER BY
+   	host_lga_cleansed,
+   	year_month asc
+)
+
+-- Third query aggregates and produces estimated_revenue_per_active_listings metric at the required level.
+SELECT
+	host_lga_cleansed,
+	year_month,
+	SUM(revenue) estimated_revenue_per_active_listings
+FROM
+	cte2
+GROUP BY
+	host_lga_cleansed,
+	year_month
+ORDER BY
+   	host_lga_cleansed,
+   	year_month asc
+;
+REFRESH MATERIALIZED VIEW at2_datamart.Question_3_2_estimated_revenue_active_listings
+;

@@ -1,0 +1,44 @@
+-- Notes: Creating temporary result set using common table expression (CTE) and use elements from here to calculate rate.
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS 
+    at2_datamart.Question_1_1_active_listings_rate AS
+
+WITH cte AS
+    (
+SELECT
+	h.neighbourhood_cleansed,
+	t.year_month,
+	count(case when p.has_availability = 't' then 1 ELSE NULL END) as active_listings,
+	count(*) as total_listings
+FROM	
+	bde_at2.air_bnb_fact f
+INNER JOIN 
+	bde_at2.dim_property p 
+   	ON p.p_id = f.p_id
+INNER JOIN 
+	bde_at2.dim_host h 
+   	ON h.h_id = f.h_id
+INNER JOIN 
+	bde_at2.dim_time t 
+   	ON t.t_id = f.t_id
+GROUP BY
+	h.neighbourhood_cleansed,
+	t.year_month
+)
+
+SELECT
+    neighbourhood_cleansed,
+	year_month,
+	active_listings,
+	total_listings,
+	ROUND(CAST(active_listings AS numeric)/(total_listings),2) AS active_listings_rate
+		
+FROM
+    cte
+   
+ORDER BY
+	year_month asc,
+	neighbourhood_cleansed
+;
+
+REFRESH MATERIALIZED VIEW at2_datamart.Question_1_1_active_listings_rate;
